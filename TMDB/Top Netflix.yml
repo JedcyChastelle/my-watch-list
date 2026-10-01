@@ -1,0 +1,32 @@
+info:
+  name: Top Netflix
+  type: http
+  seq: 3
+
+http:
+  method: GET
+  url: https://api.themoviedb.org/3/discover/tv?with_watch_providers=8&watch_region=FR&sort_by=vote_average.desc&vote_count.gte=200&language=fr-FR
+  params:
+    - name: with_watch_providers
+      value: "8"
+      type: query
+    - name: watch_region
+      value: FR
+      type: query
+    - name: sort_by
+      value: vote_average.desc
+      type: query
+    - name: vote_count.gte
+      value: "200"
+      type: query
+    - name: language
+      value: fr-FR
+      type: query
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

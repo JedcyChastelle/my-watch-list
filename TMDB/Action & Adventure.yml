@@ -1,0 +1,23 @@
+info:
+  name: Action & Adventure
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: https://api.themoviedb.org/3/discover/tv?with_genres=10759&language=fr-FR
+  params:
+    - name: with_genres
+      value: "10759"
+      type: query
+    - name: language
+      value: fr-FR
+      type: query
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
