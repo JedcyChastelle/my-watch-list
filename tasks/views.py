@@ -1,3 +1,6 @@
+import logging
+
+from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
@@ -7,7 +10,9 @@ from django.views.decorators.http import require_POST
 
 from .forms import TaskForm
 from .models import Task
-from .tmdb import PROVIDERS, discover_top_series
+from .tmdb import PROVIDERS, TMDBUnavailable, discover_top_series
+
+logger = logging.getLogger("tasks.views")
 
 
 @login_required
@@ -70,25 +75,36 @@ def add_series(request, provider):
 
     added = 0
     page = 1
-    while added < 10:
-        data = discover_top_series(info["id"], page)
-        for serie in data["results"]:
-            if serie["id"] in existing_ids:
-                continue  # déjà dans la watchlist : on passe à la suivante
-            Task.objects.create(
-                user=request.user,
-                title=serie["name"],
-                tmdb_id=serie["id"],
-                provider=info["label"],
-            )
-            existing_ids.add(serie["id"])
-            added += 1
-            if added == 10:
-                break
-        if page >= data["total_pages"]:
-            break  # TMDB n'a plus de séries à proposer
-        page += 1
+    try:
+        while added < 10:
+            data = discover_top_series(info["id"], page)
+            for serie in data["results"]:
+                if serie["id"] in existing_ids:
+                    continue  # déjà dans la watchlist : on passe à la suivante
+                Task.objects.create(
+                    user=request.user,
+                    title=serie["name"],
+                    tmdb_id=serie["id"],
+                    provider=info["label"],
+                )
+                existing_ids.add(serie["id"])
+                added += 1
+                if added == 10:
+                    break
+            if page >= data["total_pages"]:
+                break  # TMDB n'a plus de séries à proposer
+            page += 1
+    except TMDBUnavailable:
+        messages.error(
+            request,
+            f"Le catalogue {info['label']} est momentanément indisponible. "
+            "Votre watchlist reste accessible, réessayez dans quelques instants.",
+        )
+        if added:
+            messages.info(request, f"{added} série(s) ont quand même été ajoutées.")
+        return redirect("list")
 
+    messages.success(request, f"{added} série(s) {info['label']} ajoutée(s) à votre watchlist.")
     return redirect("list")
 
 

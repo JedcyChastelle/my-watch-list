@@ -55,6 +55,9 @@
 			<button class="btn btn-sm btn-secondary" type="submit">Se déconnecter</button>
 		</form>
 	</div>
+		{% for message in messages %}
+		<div class="alert alert-{{ message.tags }}" role="alert">{{ message }}</div>
+	{% endfor %}
 	<form method="POST" action="/">
 		{% csrf_token %}
 		{{form.title}}

@@ -16,4 +16,4 @@ USER appuser
 
 EXPOSE 8000
 
-CMD ["gunicorn", "todo.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--access-logfile", "-"]
+CMD ["gunicorn", "todo.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "30", "--access-logfile", "-", "--access-logformat", "%(h)s \"%(r)s\" %(s)s %(b)s %(M)sms req=%({x-request-id}i)s"]

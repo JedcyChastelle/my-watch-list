@@ -40,6 +40,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'tasks.request_id.RequestIDMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -141,3 +142,55 @@ SESSION_COOKIE_SECURE = env_bool("DJANGO_SECURE_COOKIES", False)
 CSRF_COOKIE_SECURE = env_bool("DJANGO_SECURE_COOKIES", False)
 SECURE_SSL_REDIRECT = env_bool("DJANGO_SSL_REDIRECT", False)
 SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_HSTS_SECONDS", "0"))
+
+
+# Les messages d'erreur utilisent la couleur "danger" de Bootstrap
+from django.contrib.messages import constants as message_constants  # noqa: E402
+MESSAGE_TAGS = {message_constants.ERROR: "danger"}
+
+# --- Cache (Redis dans Docker, mémoire locale sinon) ---
+if os.environ.get("REDIS_URL"):
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": os.environ["REDIS_URL"],
+            "OPTIONS": {
+                # Si Redis tombe, l'application continue (sans cache) au lieu de planter
+                "IGNORE_EXCEPTIONS": True,
+                "SOCKET_CONNECT_TIMEOUT": 2,
+                "SOCKET_TIMEOUT": 2,
+            },
+        }
+    }
+    DJANGO_REDIS_LOG_IGNORED_EXCEPTIONS = True
+else:
+    CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+
+    
+
+# --- Logs : tout part sur la sortie standard, visible avec "docker compose logs" ---
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {
+        "request_id": {"()": "tasks.request_id.RequestIDFilter"},
+    },
+    "formatters": {
+        "standard": {
+            "format": "%(asctime)s %(levelname)s [%(name)s] [req=%(request_id)s] %(message)s",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "filters": ["request_id"],
+            "formatter": "standard",
+        },
+    },
+    "root": {"handlers": ["console"], "level": "WARNING"},
+    "loggers": {
+        "tasks": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "django.request": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+        "django_redis": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+    },
+}

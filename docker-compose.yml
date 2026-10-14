@@ -5,6 +5,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    # Logs PostgreSQL : connexions et requêtes de plus de 200 ms
+    command: postgres -c log_connections=on -c log_min_duration_statement=200
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -35,11 +37,15 @@ services:
     environment:
       POSTGRES_HOST: db
       DJANGO_DEBUG: "False"
+      REDIS_URL: redis://redis:6379/0
+      TMDB_BASE_URL: http://tmdb-gateway/3
     volumes:
       - static:/app/staticfiles
     depends_on:
       migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_started
 
   web:
     image: nginx:alpine
@@ -50,6 +56,15 @@ services:
       - static:/static:ro
     depends_on:
       - app
+
+  redis:
+    image: redis:7-alpine
+
+  # Passerelle vers l'API TMDB (voir nginx/tmdb-gateway.conf)
+  tmdb-gateway:
+    image: nginx:alpine
+    volumes:
+      - ./nginx/tmdb-gateway.conf:/etc/nginx/conf.d/default.conf:ro
 
 volumes:
   pgdata:

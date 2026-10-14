@@ -81,3 +81,44 @@ n'est pas régulière.
 cookies sécurisés), désactivés volontairement car l'environnement local est en HTTP. Ils sont
 activables par variables d'environnement (`DJANGO_SECURE_COOKIES`, `DJANGO_SSL_REDIRECT`,
 `DJANGO_HSTS_SECONDS`).
+
+## Comportement pendant une panne de TMDB
+
+Panne simulée en arrêtant la passerelle (`docker compose stop tmdb-gateway`) :
+la watchlist reste consultable et les boutons d'ajout affichent un message clair, immédiatement.
+
+![Application pendant la panne TMDB](docs/panne-tmdb.png)
+
+## Partie 2 : résister aux pannes externes
+
+### Architecture complétée
+
+- `redis` : cache des réponses TMDB, partagé par toutes les instances `app`
+- `tmdb-gateway` : passerelle nginx vers l'API TMDB. L'URL de TMDB est configurable
+  (`TMDB_BASE_URL`) ; arrêter ce conteneur simule une panne de TMDB.
+
+### Exercice 4 : cache Redis pour TMDB
+
+Scénario `loadtest/locustfile_tmdb.py` : même parcours qu'en partie 1, avec en plus des clics
+massifs sur « Ajouter 10 séries » (Netflix, Prime, Apple TV). Charge volontairement modérée
+(30 utilisateurs) pour ne pas saturer TMDB, dont l'adresse IP est partagée par toute la salle.
+
+Commande : `python -m locust -f loadtest/locustfile_tmdb.py --host http://localhost:8080 -u 30 -r 5 -t 1m --headless --only-summary`
+
+| Configuration (30 utilisateurs) | Débit (req/s) | Moyenne (ms) | p95 (ms) | Erreurs (%) | Bouton TMDB : moyenne / p95 / erreurs |
+|---|---|---|---|---|---|
+| Sans cache (`TMDB_CACHE_TTL=0`) | 17,4 | 380 | 2 700 | 9,1 % | 1 462 ms / 5 100 ms / 64,8 % |
+| Avec cache Redis (5 min) | 20,5 | 51 | 110 | 0 % | 102 ms / 140 ms / 0 % |
+
+Sans cache, 65 % des clics sur « Ajouter 10 séries » échouent et le p95 atteint 5 s : TMDB limite
+le nombre de requêtes et répond lentement. L'effet se propage à toute l'application : les workers
+gunicorn restent bloqués à attendre TMDB, et même la consultation de la watchlist monte à 1,3 s
+au p95. Avec le cache (une clé par plateforme et par page, commune à tous les utilisateurs),
+les erreurs disparaissent, le bouton répond en 100 ms et le p95 global passe de 2,7 s à 110 ms.
+
+### Exercice 5 : résilience
+
+- **Timeouts** sur chaque appel TMDB : 3 s pour la connexion, 5 s pour la réponse.
+- **Gestion d'erreur** : toute erreur TMDB (panne, délai dépassé, limite de requêtes) affiche un
+  message clair au lieu d'une erreur 500. La watchlist reste consultable.
+- **Coupe-circuit** : après un échec, TMDB

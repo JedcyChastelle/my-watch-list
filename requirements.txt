@@ -4,3 +4,4 @@ requests==2.34.2
 python-dotenv==1.2.4
 gunicorn==26.2.0
 psycopg[binary]==3.3.6
+django-redis==7.0.0
