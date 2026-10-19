@@ -11,10 +11,11 @@ https://docs.djangoproject.com/en/3.2/ref/settings/
 """
 
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
+load_dotenv(BASE_DIR / ".env")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
@@ -38,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'tasks.apps.TasksConfig',
+    'mcp_server',
 ]
 
 MIDDLEWARE = [
@@ -124,3 +126,16 @@ STATIC_URL = '/static/'
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+
+# --- Serveur MCP (django-mcp-server) ---
+DJANGO_MCP_GLOBAL_SERVER_CONFIG = {
+    "name": "my-watch-list",
+    "instructions": (
+        "Serveur de la watchlist de séries de l'utilisateur. "
+        "Pour ajouter une série dont on ne connaît que le nom, appelle d'abord search_series, "
+        "puis add_series_to_watchlist avec le tmdb_id obtenu. "
+        "Pour supprimer ou marquer une série, appelle d'abord list_watchlist pour obtenir son watchlist_id."
+    ),
+}
